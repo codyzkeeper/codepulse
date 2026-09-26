@@ -129,11 +129,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             string: count,
             attributes: [.font: font, .foregroundColor: NSColor.white]
         )
-        if !model.persistentAttentionItems.isEmpty {
-            let dotColor = model.persistentAttentionItems.compactMap(\.highestPriorityPersistentApplication).min {
-                if $0.notificationLevel.priority != $1.notificationLevel.priority { return $0.notificationLevel.priority < $1.notificationLevel.priority }
-                return ActionLabelRuleConfiguration.key(for: $0.labelName) < ActionLabelRuleConfiguration.key(for: $1.labelName)
-            }.flatMap { NSColor(actionHex: $0.colorHex) } ?? .systemRed
+        if let application = model.highestPriorityPersistentApplication {
+            let dotColor = NSColor(actionHex: application.colorHex) ?? .systemRed
             title.append(NSAttributedString(
                 string: "  ●",
                 attributes: [
@@ -196,14 +193,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         let attentionCount = model.persistentAttentionItems.count
         let assigned = "\(model.assignedCount) open pull requests assigned to you"
         guard attentionCount > 0 else { return assigned }
-        let highest = model.persistentAttentionItems.compactMap(\.highestPriorityPersistentApplication)
-            .min {
-                if $0.notificationLevel.priority != $1.notificationLevel.priority {
-                    return $0.notificationLevel.priority < $1.notificationLevel.priority
-                }
-                return ActionLabelRuleConfiguration.key(for: $0.labelName) < ActionLabelRuleConfiguration.key(for: $1.labelName)
-            }?.labelName
-        return "\(assigned), \(attentionCount) persistent action\(attentionCount == 1 ? "" : "s")\(highest.map { ", highest priority \($0)" } ?? "")"
+        return "\(assigned), \(attentionCount) persistent action\(attentionCount == 1 ? "" : "s")"
     }
 
     @objc private func togglePopover() {

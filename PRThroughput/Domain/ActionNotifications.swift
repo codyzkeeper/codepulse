@@ -80,11 +80,9 @@ struct ActionNotificationConfiguration: Codable, Equatable, Sendable {
     )
 
     var enabledRules: [ActionLabelRuleConfiguration] {
-        rules.sorted { lhs, rhs in
-            let lhsName = ActionLabelRuleConfiguration.key(for: lhs.labelName)
-            let rhsName = ActionLabelRuleConfiguration.key(for: rhs.labelName)
-            return lhsName == rhsName ? lhs.id < rhs.id : lhsName < rhsName
-        }
+        // Rule order is user-controlled priority order. Do not sort this list:
+        // the menu-bar dot uses the first active persistent label in this order.
+        rules
     }
 
     var isConfigured: Bool {
@@ -112,7 +110,6 @@ struct ActionNotificationConfiguration: Codable, Equatable, Sendable {
             copy.rules[index].id = key
         }
         copy.organization = "Keeper-Dating"
-        copy.rules.sort { ActionLabelRuleConfiguration.key(for: $0.labelName) < ActionLabelRuleConfiguration.key(for: $1.labelName) }
         return copy
     }
 
@@ -129,7 +126,11 @@ struct ActionNotificationConfiguration: Codable, Equatable, Sendable {
     var revision: String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        let canonical = (try? validated()) ?? self
+        // The revision identifies the GitHub facts we must rediscover. Label
+        // order is presentation-only priority, so it must not invalidate the
+        // existing notification rows or redeliver them after a reorder.
+        var canonical = (try? validated()) ?? self
+        canonical.rules.sort { $0.id < $1.id }
         let data = (try? encoder.encode(canonical)) ?? Data()
         return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
