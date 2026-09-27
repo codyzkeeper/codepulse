@@ -6,6 +6,13 @@ enum NotificationLevel: String, Codable, CaseIterable, Sendable {
     case persistent
     case quiet
 
+    /// Loud notifications retain every persistent surface (feed row, unseen
+    /// state, and menu-bar indicator) and add the stronger system presentation.
+    /// Quiet notifications remain transient-only.
+    var hasPersistentSurfaces: Bool {
+        self == .loud || self == .persistent
+    }
+
     var priority: Int {
         switch self {
         case .loud: 0

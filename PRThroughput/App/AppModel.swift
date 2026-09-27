@@ -113,19 +113,19 @@ final class AppModel: ObservableObject {
     nonisolated static func isVisibleInAttentionFeed(_ item: AttentionItem) -> Bool {
         guard item.isActive else { return false }
         guard item.kind == .actionLabels else { return true }
-        return item.applications.contains { $0.notificationLevel == .persistent }
+        return item.applications.contains { $0.notificationLevel.hasPersistentSurfaces }
     }
 
     nonisolated static func hasUnseenAttention(_ item: AttentionItem) -> Bool {
         guard item.isUnseen else { return false }
         guard item.kind == .actionLabels else { return true }
-        return item.applications.contains { $0.notificationLevel == .persistent && $0.isUnseen }
+        return item.applications.contains { $0.notificationLevel.hasPersistentSurfaces && $0.isUnseen }
     }
 
     nonisolated static func hasPersistentAttention(_ item: AttentionItem) -> Bool {
         guard item.isActive else { return false }
         guard item.kind == .actionLabels else { return false }
-        return item.applications.contains { $0.notificationLevel == .persistent }
+        return item.applications.contains { $0.notificationLevel.hasPersistentSurfaces }
     }
 
     /// Returns the active persistent label with the highest user-configured
@@ -148,7 +148,7 @@ final class AppModel: ObservableObject {
         return items
             .flatMap(\.applications)
             .filter {
-                $0.notificationLevel == .persistent && priorityByLabel[$0.labelKey] != nil
+                $0.notificationLevel.hasPersistentSurfaces && priorityByLabel[$0.labelKey] != nil
             }
             .min { lhs, rhs in
                 let lhsPriority = priorityByLabel[lhs.labelKey] ?? Int.max
