@@ -33,16 +33,45 @@ final class ActionNotificationTests: XCTestCase {
         let suiteName = "ActionNotificationTests.\(UUID().uuidString)"
         let suite = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { suite.removePersistentDomain(forName: suiteName) }
-        let value = configured()
+        var value = configured()
+        value.rules.append(ActionLabelRuleConfiguration(labelName: "review needed", notificationLevel: .persistent))
         var reordered = value
         reordered.rules.reverse()
 
         try value.save(defaults: suite)
 
-        XCTAssertEqual(ActionNotificationConfiguration.load(defaults: suite), try value.validated())
+        let loaded = ActionNotificationConfiguration.load(defaults: suite)
+        XCTAssertEqual(loaded, try value.validated())
+        XCTAssertEqual(loaded.rules.map(\.id), value.rules.map(\.id))
         XCTAssertEqual(reordered.revision, value.revision)
+        XCTAssertEqual(try reordered.validated().rules.map(\.id), reordered.rules.map(\.id))
         XCTAssertTrue(ActionNotificationConfiguration.blank.organization.isEmpty)
         XCTAssertTrue(ActionNotificationConfiguration.blank.rules.isEmpty)
+    }
+
+    func testLabelPriorityReorderHandlesBeforeAfterAndNoOpDestinations() {
+        let rules = [
+            ActionLabelRuleConfiguration(labelName: "first"),
+            ActionLabelRuleConfiguration(labelName: "second"),
+            ActionLabelRuleConfiguration(labelName: "third")
+        ]
+
+        XCTAssertEqual(
+            LabelPriorityList.reordered(rules, from: 0, to: 3).map(\.labelName),
+            ["second", "third", "first"]
+        )
+        XCTAssertEqual(
+            LabelPriorityList.reordered(rules, from: 2, to: 0).map(\.labelName),
+            ["third", "first", "second"]
+        )
+        XCTAssertEqual(
+            LabelPriorityList.reordered(rules, from: 1, to: 1).map(\.labelName),
+            rules.map(\.labelName)
+        )
+        XCTAssertEqual(
+            LabelPriorityList.reordered(rules, from: 99, to: 0).map(\.labelName),
+            rules.map(\.labelName)
+        )
     }
 
     func testLegacyThreeRuleConfigurationMigratesWithoutAddingPersonalDefaults() throws {
@@ -63,7 +92,7 @@ final class ActionNotificationTests: XCTestCase {
         let migrated = ActionNotificationConfiguration.load(defaults: suite)
 
         XCTAssertEqual(migrated.schemaVersion, ActionNotificationConfiguration.schemaVersion)
-        XCTAssertEqual(migrated.rules.map(\.labelName), ["owner: assign", "owner: decide", "owner: invoke"])
+        XCTAssertEqual(migrated.rules.map(\.labelName), ["owner: decide", "owner: invoke", "owner: assign"])
         XCTAssertTrue(migrated.rules.allSatisfy { $0.notificationLevel == .persistent })
         XCTAssertTrue(migrated.isConfigured)
     }
@@ -172,7 +201,11 @@ final class ActionNotificationTests: XCTestCase {
 
         XCTAssertFalse(AppModel.hasUnseenAttention(item))
         XCTAssertTrue(AppModel.hasPersistentAttention(item))
-        XCTAssertNotNil(item.highestPriorityPersistentApplication)
+        let rules = [ActionLabelRuleConfiguration(labelName: "decide")]
+        XCTAssertEqual(
+            AppModel.highestPriorityPersistentApplication(in: [item], rules: rules)?.labelEventID,
+            "persistent"
+        )
     }
 
     func testPersistentMenuBarIndicatorClearsWhenGitHubLabelIsRemoved() {
@@ -182,7 +215,92 @@ final class ActionNotificationTests: XCTestCase {
         )
 
         XCTAssertFalse(AppModel.hasPersistentAttention(item))
-        XCTAssertNil(item.highestPriorityPersistentApplication)
+        XCTAssertNil(AppModel.highestPriorityPersistentApplication(in: [item], rules: []))
+    }
+
+    func testMenuBarDotUsesConfiguredLabelOrderAndFallsBackAfterRemoval() {
+        let green = AttentionItem.action(
+            pullRequestID: "green-pr", title: "Green", repository: "org/repo", number: 1,
+            url: URL(string: "https://github.com/org/repo/pull/1")!,
+            applications: [application(
+                rule: .mergeable, event: "green-event", color: "0E8A16",
+                labelName: "cody: green", level: .persistent
+            )]
+        )
+        let orange = AttentionItem.action(
+            pullRequestID: "orange-pr", title: "Orange", repository: "org/repo", number: 2,
+            url: URL(string: "https://github.com/org/repo/pull/2")!,
+            applications: [application(
+                rule: .mergeable, event: "orange-event", color: "D93F0B",
+                labelName: "cody: orange", level: .persistent
+            )]
+        )
+        let greenFirst = [
+            ActionLabelRuleConfiguration(labelName: "cody: green"),
+            ActionLabelRuleConfiguration(labelName: "cody: orange")
+        ]
+
+        XCTAssertEqual(
+            AppModel.highestPriorityPersistentApplication(in: [orange, green], rules: greenFirst)?.labelName,
+            "cody: green"
+        )
+
+        let orangeFirst = greenFirst.reversed()
+        XCTAssertEqual(
+            AppModel.highestPriorityPersistentApplication(in: [orange, green], rules: Array(orangeFirst))?.labelName,
+            "cody: orange"
+        )
+        XCTAssertEqual(
+            AppModel.highestPriorityPersistentApplication(in: [orange], rules: greenFirst)?.labelName,
+            "cody: orange"
+        )
+    }
+
+    func testMenuBarDotIgnoresPersistentFactsForUnconfiguredLabels() {
+        let stale = AttentionItem.action(
+            pullRequestID: "stale-pr", title: "Stale", repository: "org/repo", number: 3,
+            url: URL(string: "https://github.com/org/repo/pull/3")!,
+            applications: [application(
+                rule: .decide, event: "stale-event", color: "B60205",
+                labelName: "cody: removed", level: .persistent
+            )]
+        )
+
+        XCTAssertNil(AppModel.highestPriorityPersistentApplication(
+            in: [stale],
+            rules: [ActionLabelRuleConfiguration(labelName: "cody: configured")]
+        ))
+    }
+
+    @MainActor
+    func testReorderingConfigurationPreservesExistingActionRows() throws {
+        let configuration = ActionNotificationConfiguration(
+            schemaVersion: ActionNotificationConfiguration.schemaVersion,
+            organization: "Keeper-Dating",
+            rules: [
+                ActionLabelRuleConfiguration(labelName: "cody: green"),
+                ActionLabelRuleConfiguration(labelName: "cody: orange")
+            ]
+        )
+        let store = try SnapshotStore(inMemory: true)
+        let model = AppModel(snapshotStore: store, actionConfiguration: configuration)
+        let item = AttentionItem.action(
+            pullRequestID: "reorder-pr", title: "Reorder", repository: "org/repo", number: 4,
+            url: URL(string: "https://github.com/org/repo/pull/4")!,
+            applications: [application(
+                rule: .mergeable, event: "reorder-event", color: "0E8A16",
+                labelName: "cody: green", level: .persistent
+            )]
+        )
+        model.snapshot = emptySnapshot(actionItems: [item])
+        model.snapshot?.metadata.actionConfigurationRevision = configuration.revision
+
+        var reordered = configuration
+        reordered.rules.reverse()
+        try model.saveActionConfiguration(reordered)
+
+        XCTAssertEqual(model.snapshot?.attentionItems.map(\.id), [item.id])
+        XCTAssertEqual(model.actionConfiguration.rules.map(\.id), reordered.rules.map(\.id))
     }
 
     func testPresentationStateOnlyCarriesAcrossIdenticalEventIDs() {

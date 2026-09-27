@@ -159,7 +159,7 @@ final class SyncCoordinatorTests: XCTestCase {
             metadata: metadata
         )
 
-        let result = try await coordinator.refreshAssigned(previous: previous)
+        let result = try await coordinator.refreshAssigned(previous: previous, configuration: .blank)
 
         XCTAssertEqual(result.snapshot.metadata.lastSuccessfulSync, fullSyncAt)
         XCTAssertTrue(result.snapshot.assignedPullRequestIDs.isEmpty)
@@ -210,7 +210,7 @@ final class SyncCoordinatorTests: XCTestCase {
             assignedPullRequestIDs: [pull.id], attentionItems: [], metadata: metadata
         )
 
-        let handedOff = try await coordinator.refreshAssigned(previous: previous, now: now)
+        let handedOff = try await coordinator.refreshAssigned(previous: previous, now: now, configuration: .blank)
 
         XCTAssertTrue(handedOff.snapshot.assignedPullRequestIDs.isEmpty)
         XCTAssertEqual(handedOff.snapshot.handoffs.count, 1)
@@ -221,14 +221,22 @@ final class SyncCoordinatorTests: XCTestCase {
         includeDecision = true
         // The initial handoff watch has expired here. The pending-review cadence
         // still finds the decision and must start a fresh post-decision watch.
-        let decided = try await coordinator.refreshAssigned(previous: handedOff.snapshot, now: now.addingTimeInterval(400))
+        let decided = try await coordinator.refreshAssigned(
+            previous: handedOff.snapshot,
+            now: now.addingTimeInterval(400),
+            configuration: .blank
+        )
 
         guard case .changesRequested = decided.snapshot.handoffs[0].outcome else {
             return XCTFail("Expected the watched handoff to pick up the review decision")
         }
         XCTAssertTrue(decided.snapshot.attentionItems.isEmpty, "Review decisions are metrics, not direct-tag inbox items")
 
-        _ = try await coordinator.refreshAssigned(previous: decided.snapshot, now: now.addingTimeInterval(415))
+        _ = try await coordinator.refreshAssigned(
+            previous: decided.snapshot,
+            now: now.addingTimeInterval(415),
+            configuration: .blank
+        )
         XCTAssertEqual(timelineRequestCount, 3, "A decided PR should remain on the targeted watch for a prompt merge update")
     }
 

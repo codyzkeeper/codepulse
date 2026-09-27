@@ -54,53 +54,19 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 } else {
-                    // Use offsets for this local draft list. Catalog entries use
-                    // label keys, so sharing those IDs here makes SwiftUI reuse
-                    // the catalog row and hide the per-label behavior control.
-                    ForEach(actionDraft.rules.indices, id: \.self) { index in
-                        let rule = actionDraft.rules[index]
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(color(for: rule))
-                                .frame(width: 10, height: 10)
-                            Text(rule.labelName)
-                                .lineLimit(1)
-                            if !isAvailable(rule) {
-                                Text("Unavailable")
-                                    .font(.caption2)
-                                    .foregroundStyle(.orange)
-                            }
-                            Spacer(minLength: 8)
-                            Menu {
-                                ForEach(NotificationLevel.allCases, id: \.self) { level in
-                                    Button {
-                                        setNotificationLevel(level, for: rule.id)
-                                    } label: {
-                                        if level == rule.notificationLevel {
-                                            Label(level.displayName, systemImage: "checkmark")
-                                        } else {
-                                            Text(level.displayName)
-                                        }
-                                    }
-                                }
-                            } label: {
-                                Label(rule.notificationLevel.displayName, systemImage: "bell")
-                                    .frame(minWidth: 105, alignment: .leading)
-                            }
-                            .menuStyle(.borderlessButton)
-                            .help("Choose notification behavior for \(rule.labelName)")
-                            Button { remove(rule.id) } label: {
-                                Image(systemName: "minus.circle")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Remove label")
-                        }
-                    }
+                    LabelPriorityList(
+                        rules: $actionDraft.rules,
+                        labelCatalog: model.labelCatalog,
+                        setNotificationLevel: setNotificationLevel,
+                        remove: remove,
+                        save: saveActionDraft
+                    )
+                    .frame(height: CGFloat(max(actionDraft.rules.count, 1)) * 46)
                 }
             } header: {
                 Text("Selected labels (\(actionDraft.rules.count))")
             } footer: {
-                Text("Each label keeps its own notification behavior. Changes save automatically.")
+                Text("Drag labels to set menu-bar dot priority. Each label keeps its own notification behavior. Changes save automatically.")
                     .font(.caption)
             }
 
@@ -208,7 +174,6 @@ struct SettingsView: View {
             actionDraft.rules.remove(at: index)
         } else {
             actionDraft.rules.append(ActionLabelRuleConfiguration(labelName: entry.name))
-            actionDraft.rules.sort { $0.id < $1.id }
         }
         saveActionDraft()
     }

@@ -128,6 +128,38 @@ final class AppModel: ObservableObject {
         return item.applications.contains { $0.notificationLevel == .persistent }
     }
 
+    /// Returns the active persistent label with the highest user-configured
+    /// priority. The settings order is the only priority input. Cached facts
+    /// for labels no longer present in settings are ignored defensively.
+    var highestPriorityPersistentApplication: ActionLabelApplication? {
+        Self.highestPriorityPersistentApplication(
+            in: persistentAttentionItems,
+            rules: actionConfiguration.enabledRules
+        )
+    }
+
+    nonisolated static func highestPriorityPersistentApplication(
+        in items: [AttentionItem],
+        rules: [ActionLabelRuleConfiguration]
+    ) -> ActionLabelApplication? {
+        let priorityByLabel = Dictionary(
+            uniqueKeysWithValues: rules.enumerated().map { ($0.element.id, $0.offset) }
+        )
+        return items
+            .flatMap(\.applications)
+            .filter {
+                $0.notificationLevel == .persistent && priorityByLabel[$0.labelKey] != nil
+            }
+            .min { lhs, rhs in
+                let lhsPriority = priorityByLabel[lhs.labelKey] ?? Int.max
+                let rhsPriority = priorityByLabel[rhs.labelKey] ?? Int.max
+                if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
+                if lhs.labelKey != rhs.labelKey { return lhs.labelKey < rhs.labelKey }
+                if lhs.colorHex != rhs.colorHex { return lhs.colorHex < rhs.colorHex }
+                return lhs.labelEventID < rhs.labelEventID
+            }
+    }
+
     var isStale: Bool {
         guard let last = snapshot?.metadata.lastSuccessfulSync else { return false }
         return Date().timeIntervalSince(last) > 600
@@ -446,9 +478,13 @@ final class AppModel: ObservableObject {
     }
 
     func saveActionConfiguration(_ configuration: ActionNotificationConfiguration) throws {
+        let priorRevision = actionConfiguration.revision
         let configuration = try configuration.validated()
         try configuration.save()
         actionConfiguration = configuration
+        // Reordering labels only changes menu-bar presentation priority. Keep
+        // verified rows, local seen state, and delivered notifications intact.
+        guard configuration.revision != priorRevision else { return }
         notifications.removeAll()
         if var updated = snapshot {
             updated.attentionItems = []
