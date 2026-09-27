@@ -162,11 +162,16 @@ final class ActionNotificationTests: XCTestCase {
         XCTAssertTrue(item.isUnseen)
     }
 
-    func testAttentionFeedKeepsLegacyAttentionKindsAndFiltersNonPersistentActionLabels() {
+    func testAttentionFeedKeepsLegacyKindsAndLoudRetainsPersistentSurfaces() {
         let quietAction = AttentionItem.action(
             pullRequestID: "quiet", title: "Quiet", repository: "org/repo", number: 1,
             url: URL(string: "https://github.com/org/repo/pull/1")!,
             applications: [application(rule: .decide, event: "quiet", color: "B60205", level: .quiet)]
+        )
+        let loudAction = AttentionItem.action(
+            pullRequestID: "loud", title: "Loud", repository: "org/repo", number: 2,
+            url: URL(string: "https://github.com/org/repo/pull/2")!,
+            applications: [application(rule: .decide, event: "loud", color: "B60205", level: .loud)]
         )
         let persistentAction = AttentionItem.action(
             pullRequestID: "persistent", title: "Persistent", repository: "org/repo", number: 2,
@@ -181,12 +186,15 @@ final class ActionNotificationTests: XCTestCase {
         )
 
         XCTAssertFalse(AppModel.isVisibleInAttentionFeed(quietAction))
+        XCTAssertTrue(AppModel.isVisibleInAttentionFeed(loudAction))
         XCTAssertTrue(AppModel.isVisibleInAttentionFeed(persistentAction))
         XCTAssertTrue(AppModel.isVisibleInAttentionFeed(mention))
         XCTAssertFalse(AppModel.hasPersistentAttention(quietAction))
+        XCTAssertTrue(AppModel.hasPersistentAttention(loudAction))
         XCTAssertTrue(AppModel.hasPersistentAttention(persistentAction))
         XCTAssertFalse(AppModel.hasPersistentAttention(mention))
         XCTAssertFalse(AppModel.hasUnseenAttention(quietAction))
+        XCTAssertTrue(AppModel.hasUnseenAttention(loudAction))
         XCTAssertTrue(AppModel.hasUnseenAttention(persistentAction))
         XCTAssertTrue(AppModel.hasUnseenAttention(mention))
     }
