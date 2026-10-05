@@ -1,13 +1,13 @@
-# PR Throughput
+# Codepulse
 
-PR Throughput is a lightweight macOS menu-bar app for tracking your pull-request shipping velocity and review cost across GitHub.com.
+Codepulse is a lightweight macOS menu-bar app for tracking your pull-request shipping velocity and review cost across GitHub.com.
 
 It is a universal app for Apple silicon and Intel Macs running macOS 14 or later.
 
 ## Install
 
-1. Download the latest `PR-Throughput.dmg` from [GitHub Releases](https://github.com/codyzkeeper/pr-throughput/releases/latest).
-2. Open the disk image and drag **PR Throughput** to **Applications**.
+1. Download the latest `Codepulse-v<version>.dmg` from [GitHub Releases](https://github.com/codyzkeeper/codepulse/releases/latest).
+2. Open the disk image and drag **Codepulse** to **Applications**.
 3. Launch the app, enter the public client ID of a GitHub OAuth App if the build is not preconfigured, and sign in through GitHub Device Flow.
 
 The initial public build is ad-hoc signed because this project does not yet have a Developer ID Application certificate. On first launch, macOS may require you to Control-click the app and choose **Open**. A future Developer ID build can remove that limitation after signing and Apple notarization.
@@ -30,7 +30,7 @@ Configure any number of action labels in Settings by choosing from the live labe
 1. In GitHub, open **Settings → Developer settings → OAuth Apps → New OAuth App**.
 2. Give the app any name and homepage URL you prefer.
 3. Enable **Device Flow** after creating the OAuth App.
-4. Build and launch PR Throughput.
+4. Build and launch Codepulse.
 5. Paste the OAuth App's public client ID into the onboarding field and choose **Sign in with GitHub**.
 
 No client secret is used. New authorizations request `repo read:user`; GitHub's `repo` scope is broad because GitHub does not provide read-only OAuth access to private repository pull requests. The app does not request the GitHub `notifications` scope. Organizations may require an administrator to approve the OAuth App.
@@ -44,9 +44,9 @@ xcodegen generate
 xcodebuild test -project PRThroughput.xcodeproj -scheme PRThroughput -destination 'platform=macOS,arch=arm64' CODE_SIGNING_ALLOWED=NO
 ```
 
-Open `PRThroughput.xcodeproj` in Xcode for normal local development and signing.
+Open `PRThroughput.xcodeproj` in Xcode for normal local development and signing. The project and Swift module retain their historical internal names so existing Keychain credentials and local data continue to work across the rename.
 
-To create a local universal release bundle in `outputs/PRThroughput.app`:
+To create a local universal release bundle in `outputs/Codepulse.app`:
 
 ```sh
 Scripts/build_release.sh

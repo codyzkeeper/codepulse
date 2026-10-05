@@ -1,5 +1,5 @@
 import XCTest
-@testable import PRThroughput
+@testable import Codepulse
 
 final class HandoffMatcherTests: XCTestCase {
     private let viewer = GitHubUser(id: "viewer", login: "me", kind: .user)

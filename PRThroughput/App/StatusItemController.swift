@@ -43,7 +43,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         let defaults = UserDefaults.standard
         let savedPosition = defaults.object(forKey: Self.initialPositionKey) as? Int
         if savedPosition == nil || savedPosition == Self.legacySystemControlPosition {
-            // Keep PR Throughput with third-party status items, to the left of
+            // Keep Codepulse with third-party status items, to the left of
             // Spotlight, Wi-Fi, battery, and Control Center. Migrate only our old
             // forced value so a position chosen later with Command-drag is preserved.
             defaults.set(Self.initialThirdPartyAppPosition, forKey: Self.initialPositionKey)
@@ -106,8 +106,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             setSymbol("arrow.trianglehead.branch", on: button)
         }
 
-        button.toolTip = "PR Throughput — \(accessibilitySummary)"
-        button.setAccessibilityLabel("PR Throughput")
+        button.toolTip = "Codepulse — \(accessibilitySummary)"
+        button.setAccessibilityLabel("Codepulse")
         button.setAccessibilityValue(accessibilitySummary)
     }
 

@@ -1,6 +1,6 @@
 # Privacy
 
-PR Throughput is a local, read-only GitHub client.
+Codepulse is a local, read-only GitHub client.
 
 ## Data the app accesses
 

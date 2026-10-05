@@ -2,7 +2,7 @@
 set -euo pipefail
 
 workspace_dir="${0:A:h:h}"
-app="$workspace_dir/outputs/PRThroughput.app"
+app="$workspace_dir/outputs/Codepulse.app"
 output_dir="$workspace_dir/outputs"
 
 if [[ ! -d "$app" ]]; then
@@ -13,8 +13,8 @@ fi
 version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Contents/Info.plist")"
 staging_dir="$(mktemp -d "$workspace_dir/build/package.XXXXXX")"
 volume_dir="$staging_dir/volume"
-zip_tmp="$staging_dir/PR-Throughput-v$version.zip"
-dmg_tmp="$staging_dir/PR-Throughput-v$version.dmg"
+zip_tmp="$staging_dir/Codepulse-v$version.zip"
+dmg_tmp="$staging_dir/Codepulse-v$version.dmg"
 checksum_tmp="$staging_dir/SHA256SUMS.txt"
 
 cleanup() {
@@ -23,12 +23,12 @@ cleanup() {
 trap cleanup EXIT
 
 mkdir -p "$volume_dir" "$output_dir"
-ditto "$app" "$volume_dir/PR Throughput.app"
+ditto "$app" "$volume_dir/Codepulse.app"
 ln -s /Applications "$volume_dir/Applications"
 
-ditto -c -k --sequesterRsrc --keepParent "$volume_dir/PR Throughput.app" "$zip_tmp"
+ditto -c -k --sequesterRsrc --keepParent "$volume_dir/Codepulse.app" "$zip_tmp"
 hdiutil create \
-  -volname "PR Throughput" \
+  -volname "Codepulse" \
   -srcfolder "$volume_dir" \
   -format UDZO \
   -fs HFS+ \

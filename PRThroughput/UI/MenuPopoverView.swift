@@ -383,8 +383,8 @@ struct MenuPopoverView: View {
                 .accessibilityLabel("Settings")
             Button { NSApplication.shared.terminate(nil) } label: { Image(systemName: "power") }
                 .buttonStyle(.plain)
-                .help("Quit PR Throughput")
-                .accessibilityLabel("Quit PR Throughput")
+                .help("Quit Codepulse")
+                .accessibilityLabel("Quit Codepulse")
         }
         .padding(12)
     }

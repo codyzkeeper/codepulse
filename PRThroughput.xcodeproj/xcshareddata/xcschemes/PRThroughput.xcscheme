@@ -16,7 +16,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "50BBD3A76DFD014F7DF5656B"
-               BuildableName = "PRThroughput.app"
+               BuildableName = "Codepulse.app"
                BlueprintName = "PRThroughput"
                ReferencedContainer = "container:PRThroughput.xcodeproj">
             </BuildableReference>
@@ -47,7 +47,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "50BBD3A76DFD014F7DF5656B"
-            BuildableName = "PRThroughput.app"
+            BuildableName = "Codepulse.app"
             BlueprintName = "PRThroughput"
             ReferencedContainer = "container:PRThroughput.xcodeproj">
          </BuildableReference>
@@ -83,7 +83,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "50BBD3A76DFD014F7DF5656B"
-            BuildableName = "PRThroughput.app"
+            BuildableName = "Codepulse.app"
             BlueprintName = "PRThroughput"
             ReferencedContainer = "container:PRThroughput.xcodeproj">
          </BuildableReference>
@@ -100,7 +100,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "50BBD3A76DFD014F7DF5656B"
-            BuildableName = "PRThroughput.app"
+            BuildableName = "Codepulse.app"
             BlueprintName = "PRThroughput"
             ReferencedContainer = "container:PRThroughput.xcodeproj">
          </BuildableReference>

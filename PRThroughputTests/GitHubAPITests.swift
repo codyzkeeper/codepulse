@@ -1,6 +1,6 @@
 import Foundation
 import XCTest
-@testable import PRThroughput
+@testable import Codepulse
 
 final class GitHubAPITests: XCTestCase {
     override func tearDown() {

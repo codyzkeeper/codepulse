@@ -603,7 +603,7 @@ actor GitHubAPI {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
         request.setValue("2026-03-10", forHTTPHeaderField: "X-GitHub-Api-Version")
-        request.setValue("PRThroughput/0.1", forHTTPHeaderField: "User-Agent")
+        request.setValue("Codepulse/0.1", forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         return request
     }

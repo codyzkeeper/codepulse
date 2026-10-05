@@ -1,6 +1,6 @@
 import Security
 import XCTest
-@testable import PRThroughput
+@testable import Codepulse
 
 final class KeychainTokenStoreTests: XCTestCase {
     func testOnlyTemporaryKeychainAvailabilityFailuresAreRetryable() {

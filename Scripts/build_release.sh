@@ -6,8 +6,8 @@ output_dir="$workspace_dir/outputs"
 derived_dir="$workspace_dir/build/DerivedData"
 mkdir -p "$workspace_dir/build"
 staging_dir="$(mktemp -d "$workspace_dir/build/release.XXXXXX")"
-staged_app="$staging_dir/PRThroughput.app"
-final_app="$output_dir/PRThroughput.app"
+staged_app="$staging_dir/Codepulse.app"
+final_app="$output_dir/Codepulse.app"
 previous_app="$staging_dir/previous.app"
 github_client_id="${GITHUB_CLIENT_ID:-}"
 
@@ -41,7 +41,7 @@ xcodebuild build \
   "GITHUB_CLIENT_ID=$github_client_id"
 
 mkdir -p "$output_dir"
-ditto "$derived_dir/Build/Products/Release/PRThroughput.app" "$staged_app"
+ditto "$derived_dir/Build/Products/Release/Codepulse.app" "$staged_app"
 codesign --force --deep --sign - --entitlements "$workspace_dir/PRThroughput/Resources/PRThroughput.entitlements" "$staged_app"
 codesign --verify --deep --strict "$staged_app"
 
