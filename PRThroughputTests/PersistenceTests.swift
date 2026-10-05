@@ -1,5 +1,5 @@
 import XCTest
-@testable import PRThroughput
+@testable import Codepulse
 
 @MainActor
 final class PersistenceTests: XCTestCase {

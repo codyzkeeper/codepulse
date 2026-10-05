@@ -1,5 +1,5 @@
 import XCTest
-@testable import PRThroughput
+@testable import Codepulse
 
 final class ActionNotificationTests: XCTestCase {
     private let now = Date(timeIntervalSince1970: 1_800_000_000)

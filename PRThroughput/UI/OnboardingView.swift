@@ -9,7 +9,7 @@ struct OnboardingView: View {
                 .font(.system(size: 38, weight: .semibold))
                 .foregroundStyle(.blue)
             VStack(spacing: 5) {
-                Text("PR Throughput").font(.title2.bold())
+                Text("Codepulse").font(.title2.bold())
                 Text("A private, read-only view of shipping velocity and review cost.")
                     .font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }

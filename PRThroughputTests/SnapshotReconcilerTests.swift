@@ -1,5 +1,5 @@
 import XCTest
-@testable import PRThroughput
+@testable import Codepulse
 
 final class SnapshotReconcilerTests: XCTestCase {
     func testValidSnapshotReconcilesSourceFactsAndEveryMetricRange() throws {

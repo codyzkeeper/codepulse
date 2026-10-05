@@ -121,7 +121,6 @@
 		9D5E2FA1BC6EA749D1DBB50E /* GitHubAPITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubAPITests.swift; sourceTree = "<group>"; };
 		A038391B48A8DC176AE035E7 /* KeychainTokenStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainTokenStoreTests.swift; sourceTree = "<group>"; };
 		A2E90E19EF0A5E52B883701A /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		A33A5F4DDE857E6450DDB658 /* PRThroughput.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PRThroughput.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A3711658F9A49FC4015BAAEA /* GitHubAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubAPI.swift; sourceTree = "<group>"; };
 		ACA7D5902856E40D2534B89D /* LocalNotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalNotificationService.swift; sourceTree = "<group>"; };
 		AD64E766526579661DBCF20E /* HandoffResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HandoffResolverTests.swift; sourceTree = "<group>"; };
@@ -138,6 +137,7 @@
 		DF50947A34B74324B5016629 /* ActionNotificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionNotificationTests.swift; sourceTree = "<group>"; };
 		E45F7CD6DF933919854275CF /* OAuthDeviceFlowService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthDeviceFlowService.swift; sourceTree = "<group>"; };
 		E605B3581BD6EF990948E693 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F1838A15E3D3B61A878F366E /* Codepulse.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Codepulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		FCCF2510356374F4BE9B07D6 /* TimelineEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimelineEvent.swift; sourceTree = "<group>"; };
 		FCF3FD223CCBFF86892411FD /* SnapshotReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotReconcilerTests.swift; sourceTree = "<group>"; };
 		FEB3922C673E2DB197019300 /* GitHubUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubUser.swift; sourceTree = "<group>"; };
@@ -285,7 +285,7 @@
 		E3F61ADF7A4F0BCE8A169958 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A33A5F4DDE857E6450DDB658 /* PRThroughput.app */,
+				F1838A15E3D3B61A878F366E /* Codepulse.app */,
 				5E96C7A9A4B6FA7799C093EE /* PRThroughputLiveE2E */,
 				B481DAA724A513ACAE1D5010 /* PRThroughputTests.xctest */,
 				8D8D18EF713625A5C07D4F18 /* PRThroughputUIQA.app */,
@@ -311,7 +311,7 @@
 			packageProductDependencies = (
 			);
 			productName = PRThroughput;
-			productReference = A33A5F4DDE857E6450DDB658 /* PRThroughput.app */;
+			productReference = F1838A15E3D3B61A878F366E /* Codepulse.app */;
 			productType = "com.apple.product-type.application";
 		};
 		B798E724ECF4BC3F6745C5F3 /* PRThroughputLiveE2E */ = {
@@ -560,7 +560,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.prthroughput.PRThroughput;
-				PRODUCT_NAME = PRThroughput;
+				PRODUCT_NAME = Codepulse;
 				SDKROOT = macosx;
 			};
 			name = Debug;
@@ -573,7 +573,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PRThroughput/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "PR Throughput UI QA";
+				INFOPLIST_KEY_CFBundleDisplayName = "Codepulse UI QA";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -607,7 +607,7 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PRThroughput/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "PR Throughput UI QA";
+				INFOPLIST_KEY_CFBundleDisplayName = "Codepulse UI QA";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -632,7 +632,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.prthroughput.PRThroughput;
-				PRODUCT_NAME = PRThroughput;
+				PRODUCT_NAME = Codepulse;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -791,7 +791,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.prthroughput.PRThroughputTests;
 				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PRThroughput.app/Contents/MacOS/PRThroughput";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codepulse.app/Contents/MacOS/Codepulse";
 			};
 			name = Release;
 		};
@@ -809,7 +809,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = app.prthroughput.PRThroughputTests;
 				SDKROOT = macosx;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/PRThroughput.app/Contents/MacOS/PRThroughput";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Codepulse.app/Contents/MacOS/Codepulse";
 			};
 			name = Debug;
 		};

@@ -36,7 +36,7 @@ struct UIQAHarnessApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("PR Throughput UI QA") {
+        WindowGroup("Codepulse UI QA") {
             MenuPopoverView(model: model)
         }
         .windowResizability(.contentSize)
