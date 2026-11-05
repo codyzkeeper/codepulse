@@ -23,6 +23,8 @@ The initial public build is ad-hoc signed because this project does not yet have
 
 The app does not mutate GitHub data. It stores the OAuth token in your local Keychain and does not persist source code, diffs, comments, or review bodies. No account data, token, metrics cache, preferences, or notifications are included in release artifacts. See [PRIVACY.md](PRIVACY.md) for the complete data-handling summary.
 
+Use **Metric repositories** in Settings to leave a repository's pull requests out of every metric, for example a repository where automation opens and merges pull requests under your account. `Keeper-Dating/review-ledgers` is excluded by default. Exclusions apply immediately; turning a repository back on restores it at the next sync. Assigned PRs and label notifications are not affected.
+
 Configure any number of action labels in Settings by choosing from the live label catalog for the `Keeper-Dating` organization. Each selected label can use Loud, Persistent, or Quiet notification behavior. GitHub's current labels and per-repository colors are authoritative: adding a configured label creates the corresponding notification, feed row, and colored menu-bar dot when applicable; removing it or closing the PR removes that state. Multiple labels consolidate into one PR row, with the strongest level determining the row's presentation. Seeing the row, opening it, opening all listed PRs, or opening its macOS notification clears the dot while leaving the row visible; only GitHub label removal or PR closure removes it. A configured label that is temporarily absent from the catalog remains configured and is shown as unavailable until it returns.
 
 ## Configure GitHub authentication
@@ -73,6 +75,9 @@ To validate action labels too, set `PR_THROUGHPUT_ACTION_ORGANIZATION` (normally
 after a label to exercise its notification level. The harness checks
 the same direct-label authority, colors, safe PR URLs, configuration revision, and
 reconciliation invariants used by the app; it still performs no GitHub writes.
+Metrics exclude `Keeper-Dating/review-ledgers` as the app does by default; set
+`PR_THROUGHPUT_EXCLUDED_REPOSITORIES` to a comma-separated `owner/name` list to override
+it, or to an empty value to count every repository.
 For a focused low-cost check, pass `--action-only` and provide comma-separated GraphQL
 PR node IDs in `PR_THROUGHPUT_ACTION_CANDIDATE_IDS`; this is useful when deliberately
 testing around GitHub search-index lag without repeating the 30-day metrics crawl.

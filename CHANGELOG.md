@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 — 2026-11-05
+
+- Added a **Metric repositories** setting that leaves a repository's authored pull requests out of every metric, the activity chart, and the canonical export. `Keeper-Dating/review-ledgers` is excluded by default because review-loop rounds are recorded there as pull requests that merge within seconds, which had inflated merges and new work and pulled median merge time to zero.
+- Excluded repositories are also skipped in authored-PR search and timeline fetches, so their volume no longer spends GitHub API quota or the search result ceiling.
+- The live E2E harness and canonical metric capture honor `PR_THROUGHPUT_EXCLUDED_REPOSITORIES`.
+
 ## 0.4.1 — 2026-09-22
 
 - Replaced the derived snapshot cache's SwiftData dependency with an atomic Foundation JSON store so startup and tests do not depend on the SwiftData macro plugin.

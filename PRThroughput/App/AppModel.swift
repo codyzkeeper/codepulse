@@ -32,6 +32,9 @@ final class AppModel: ObservableObject {
     @Published var transientKind: TransientEventKind?
     @Published private(set) var notificationAuthorizationStatus = "Checking…"
     @Published private(set) var actionConfiguration: ActionNotificationConfiguration
+    @Published private(set) var metricExclusions: MetricRepositoryExclusions
+    /// Repositories turned back on whose pull requests the next full sync restores.
+    @Published private(set) var restoringRepositories: [String] = []
     @Published private(set) var labelCatalog: [GitHubLabelCatalogEntry] = []
     @Published private(set) var isLoadingLabelCatalog = false
     @Published private(set) var labelCatalogError: String?
@@ -55,14 +58,20 @@ final class AppModel: ObservableObject {
     private var activeActionSyncID: UUID?
     private var labelCatalogSessionID: UUID?
     private var hasStarted = false
+    private var isFullRefreshRequested = false
 
     convenience init() {
         self.init(snapshotStore: try? SnapshotStore(), actionConfiguration: .load())
     }
 
-    init(snapshotStore: SnapshotStore?, actionConfiguration: ActionNotificationConfiguration) {
+    init(
+        snapshotStore: SnapshotStore?,
+        actionConfiguration: ActionNotificationConfiguration,
+        metricExclusions: MetricRepositoryExclusions = .load()
+    ) {
         self.snapshotStore = snapshotStore
         self.actionConfiguration = actionConfiguration
+        self.metricExclusions = metricExclusions
         let configured = Bundle.main.object(forInfoDictionaryKey: "GITHUB_CLIENT_ID") as? String
         oauthClientID = Self.resolveOAuthClientID(
             saved: UserDefaults.standard.string(forKey: "github.oauthClientID"),
@@ -319,6 +328,7 @@ final class AppModel: ObservableObject {
         guard let coordinator, let sessionID = activeSessionID, let syncID = beginSync() else { return }
         defer { endSync(syncID) }
         errorMessage = nil
+        isFullRefreshRequested = false
         let previous = snapshot
         do {
             let needsActionAuthority = previous == nil
@@ -327,7 +337,8 @@ final class AppModel: ObservableObject {
             let result = try await coordinator.refresh(
                 previous: previous,
                 configuration: actionConfiguration,
-                includeActionAuthority: needsActionAuthority
+                includeActionAuthority: needsActionAuthority,
+                exclusions: metricExclusions
             )
             guard activeSessionID == sessionID, connectionState == .connected else { return }
             guard result.snapshot.metadata.actionConfigurationRevision == actionConfiguration.revision else {
@@ -336,10 +347,12 @@ final class AppModel: ObservableObject {
             }
             let currentBeforePublish = snapshot
             let merged = Self.mergeLocalPresentation(into: result.snapshot, current: currentBeforePublish)
+                .excludingRepositories(metricExclusions)
             try SnapshotReconciler.requireValid(merged, actionConfiguration: actionConfiguration)
             try snapshotStore?.save(merged)
             snapshot = merged
             isDataVerified = true
+            if !isFullRefreshRequested { restoringRepositories = [] }
             await reconcileSystemNotifications(previous: currentBeforePublish, sessionID: sessionID)
             showTransient(result.transientEvents)
         } catch {
@@ -515,6 +528,46 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Repositories that hold the viewer's authored pull requests, with how many
+    /// each contributes, plus every excluded repository so it can be restored.
+    var metricRepositoryChoices: [MetricRepositoryChoice] {
+        let authored = (snapshot?.pullRequests ?? []).filter {
+            $0.authorID == snapshot?.viewer.id && !metricExclusions.excludes($0.repository)
+        }
+        let counts = Dictionary(grouping: authored, by: \.repository).mapValues(\.count)
+        let counted = counts.map { MetricRepositoryChoice(repository: $0.key, pullRequestCount: $0.value, isCounted: true) }
+        let restoring = restoringRepositories
+            .filter { repository in !counts.keys.contains { $0.caseInsensitiveCompare(repository) == .orderedSame } }
+            .map { MetricRepositoryChoice(repository: $0, pullRequestCount: nil, isCounted: true) }
+        let excluded = metricExclusions.repositories.map {
+            MetricRepositoryChoice(repository: $0, pullRequestCount: nil, isCounted: false)
+        }
+        return (counted + restoring + excluded).sorted { $0.repository.lowercased() < $1.repository.lowercased() }
+    }
+
+    func setRepository(_ repository: String, counted: Bool) {
+        let updated = metricExclusions.setting(repository, excluded: !counted)
+        guard updated != metricExclusions else { return }
+        updated.save()
+        metricExclusions = updated
+        restoringRepositories.removeAll { $0.caseInsensitiveCompare(repository) == .orderedSame }
+        if counted { restoringRepositories.append(repository) }
+        if var current = snapshot {
+            // Exclusion is immediate and local. Restoring a repository needs its
+            // pull requests and timelines from GitHub, so it waits for the refresh.
+            current = current.excludingRepositories(updated)
+            snapshot = current
+            do {
+                try snapshotStore?.save(current)
+            } catch {
+                errorMessage = "The repository setting was saved, but the derived cache could not be updated: \(error.localizedDescription)"
+            }
+        }
+        // A sync already in flight used the previous setting; run another once it ends.
+        isFullRefreshRequested = true
+        Task { [weak self] in await self?.refresh() }
+    }
+
     func refreshLabelCatalog(force: Bool = false) async {
         guard let coordinator, let sessionID = activeSessionID, connectionState == .connected else { return }
         guard !isLoadingLabelCatalog else { return }
@@ -587,6 +640,11 @@ final class AppModel: ObservableObject {
                 cached.metadata.lastActionLabelError = nil
                 cacheChanged = true
                 notifications.removeAll()
+            }
+            let scoped = cached.excludingRepositories(metricExclusions)
+            if scoped.pullRequests.count != cached.pullRequests.count {
+                cached = scoped
+                cacheChanged = true
             }
             if cacheChanged { try snapshotStore?.save(cached) }
             let report = cached.reconciliation()
@@ -669,7 +727,9 @@ final class AppModel: ObservableObject {
                 return
             }
             let currentBeforePublish = self.snapshot
+            // Exclusions may change while this request is in flight.
             let merged = Self.mergeLocalPresentation(into: result.snapshot, current: currentBeforePublish)
+                .excludingRepositories(metricExclusions)
             try SnapshotReconciler.requireValid(merged, actionConfiguration: actionConfiguration)
             try snapshotStore?.save(merged)
             self.snapshot = merged
@@ -856,6 +916,9 @@ final class AppModel: ObservableObject {
         guard activeSyncID == id else { return }
         activeSyncID = nil
         isSyncing = false
+        if isFullRefreshRequested {
+            Task { [weak self] in await self?.refresh() }
+        }
     }
 
     nonisolated static func shouldDisconnect(after error: Error) -> Bool {

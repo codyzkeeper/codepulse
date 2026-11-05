@@ -78,10 +78,15 @@ struct LiveE2E {
         }
 
         let coordinator = SyncCoordinator(api: api)
-        let first = try await coordinator.refresh(previous: nil, configuration: actionConfiguration)
+        let exclusions = metricExclusionsFromEnvironment()
+        let first = try await coordinator.refresh(
+            previous: nil, configuration: actionConfiguration, exclusions: exclusions
+        )
         try validate(first.snapshot, viewer: viewer, configuration: actionConfiguration)
 
-        let second = try await coordinator.refresh(previous: first.snapshot, configuration: actionConfiguration)
+        let second = try await coordinator.refresh(
+            previous: first.snapshot, configuration: actionConfiguration, exclusions: exclusions
+        )
         try validate(second.snapshot, viewer: viewer, configuration: actionConfiguration)
         guard let asOf = second.snapshot.metadata.lastSuccessfulSync else {
             throw LiveE2EError.invariant("missing verified full-sync boundary")
@@ -187,6 +192,13 @@ struct LiveE2E {
                 try require(metrics.decisions == 0, "missing rates with decisions for \(range.rawValue)")
             }
         }
+    }
+
+    /// Matches the app's default unless overridden with a comma-separated list;
+    /// an empty value counts every repository.
+    private static func metricExclusionsFromEnvironment() -> MetricRepositoryExclusions {
+        guard let raw = ProcessInfo.processInfo.environment["PR_THROUGHPUT_EXCLUDED_REPOSITORIES"] else { return .default }
+        return MetricRepositoryExclusions(repositories: raw.split(separator: ",").map(String.init))
     }
 
     private static func actionConfigurationFromEnvironment() throws -> ActionNotificationConfiguration {
