@@ -108,6 +108,34 @@ struct SettingsView: View {
                     Button("Retry save") { saveActionDraft() }
                 }
             }
+            Section {
+                let choices = model.metricRepositoryChoices
+                if choices.isEmpty {
+                    Text("Repositories appear after the first sync.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(choices) { choice in
+                    Toggle(isOn: Binding(
+                        get: { choice.isCounted },
+                        set: { model.setRepository(choice.repository, counted: $0) }
+                    )) {
+                        HStack {
+                            Text(choice.repository).lineLimit(1)
+                            Spacer()
+                            Text(repositoryDetail(choice))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            } header: {
+                Text("Metric repositories")
+            } footer: {
+                Text("Turn off repositories where automation opens pull requests under your account. Their pull requests are left out of every metric. Assigned PRs and label notifications are unaffected.")
+                    .font(.caption)
+            }
+
             Section("GitHub") {
                 LabeledContent("Account", value: accountValue)
                     .accessibilityElement(children: .ignore)
@@ -143,6 +171,11 @@ struct SettingsView: View {
         if model.snapshot?.metadata.lastActionLabelError != nil { return "Error — previous verified state preserved" }
         guard let date = model.snapshot?.metadata.lastSuccessfulActionLabelSync else { return "Waiting for first sync" }
         return Date().timeIntervalSince(date) > 60 ? "Stale — \(date.formatted())" : "Fresh — \(date.formatted())"
+    }
+
+    private func repositoryDetail(_ choice: MetricRepositoryChoice) -> String {
+        guard let count = choice.pullRequestCount else { return choice.isCounted ? "Syncing…" : "Excluded" }
+        return count == 1 ? "1 PR" : "\(count) PRs"
     }
 
     private var accountValue: String {
