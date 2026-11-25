@@ -10,7 +10,7 @@ GitHub's OAuth `repo` scope is broad because GitHub does not offer a read-only O
 
 ## Data stored on your Mac
 
-- The OAuth access token is stored in macOS Keychain as a device-only item.
+- The OAuth access token is stored in macOS Keychain as a device-only item. It stays there until you sign out or sign in again; if GitHub keeps rejecting it, the app asks you to sign in again rather than deleting it.
 - Aggregate source facts, metric state, label-application IDs, and local seen/dismissed state are stored in the app's sandboxed Application Support container.
 - Preferences are stored in the app's sandboxed preferences container.
 - The app does not persist repository source code, diffs, comment bodies, or review bodies.

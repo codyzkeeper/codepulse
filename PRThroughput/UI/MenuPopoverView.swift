@@ -3,12 +3,14 @@ import SwiftUI
 
 enum MenuPresentationState: Equatable {
     case onboarding
+    case connecting
     case initialSync
     case dashboard
 
     static func resolve(connectionState: AppModel.ConnectionState, hasSnapshot: Bool) -> Self {
         switch connectionState {
         case .disconnected, .authorizing: .onboarding
+        case .connecting: .connecting
         case .connected: hasSnapshot ? .dashboard : .initialSync
         }
     }
@@ -29,6 +31,8 @@ struct MenuPopoverView: View {
             ) {
             case .onboarding:
                 OnboardingView(model: model)
+            case .connecting:
+                connecting
             case .initialSync:
                 initialSync
             case .dashboard:
@@ -37,6 +41,29 @@ struct MenuPopoverView: View {
         }
         .frame(width: 390)
         .task { await model.start() }
+    }
+
+    private var connecting: some View {
+        VStack(spacing: 0) {
+            VStack(spacing: 12) {
+                ProgressView()
+                    .controlSize(.regular)
+                Text("Connecting to GitHub…")
+                    .font(.headline)
+                if let error = model.errorMessage {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 300)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(20)
+            Divider()
+            footer(showsRefresh: false)
+        }
+        .frame(height: 300)
     }
 
     private var initialSync: some View {
@@ -374,9 +401,16 @@ struct MenuPopoverView: View {
     }
 
     private var footer: some View {
+        footer(showsRefresh: true)
+    }
+
+    /// Refresh is hidden while connecting because reconnection already retries on its own.
+    private func footer(showsRefresh: Bool) -> some View {
         HStack {
-            Button { Task { await model.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
-                .disabled(model.isSyncing)
+            if showsRefresh {
+                Button { Task { await model.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }
+                    .disabled(model.isSyncing)
+            }
             Spacer()
             SettingsLink { Image(systemName: "gearshape") }.buttonStyle(.plain)
                 .help("Settings")

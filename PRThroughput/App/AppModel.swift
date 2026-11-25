@@ -14,6 +14,8 @@ final class AppModel: ObservableObject {
 
     enum ConnectionState: Equatable {
         case disconnected
+        /// Reaching GitHub with the saved sign-in, for example while the network comes up after login.
+        case connecting
         case authorizing
         case connected
     }
@@ -44,13 +46,19 @@ final class AppModel: ObservableObject {
         didSet { UserDefaults.standard.set(oauthClientID, forKey: "github.oauthClientID") }
     }
 
-    private let tokenStore = KeychainTokenStore()
+    nonisolated static let signInAgainMessage = "GitHub has been rejecting Codepulse’s sign-in. Sign in again to resume syncing."
+
+    private let tokenStore: KeychainTokenStore
+    private let makeAPI: @Sendable (String) -> GitHubAPI
+    private let sessionTiming: SessionTiming
     private let snapshotStore: SnapshotStore?
     private let notifications = LocalNotificationService()
     private var coordinator: SyncCoordinator?
     private var refreshLoop: Task<Void, Never>?
     private var actionRefreshLoop: Task<Void, Never>?
     private var signInTask: Task<Void, Never>?
+    private var sessionRestoreTask: Task<Void, Never>?
+    private var authorizationRejections = AuthorizationRejectionStreak()
     private var transientResetTask: Task<Void, Never>?
     private var signInAttemptID: UUID?
     private var activeSessionID: UUID?
@@ -67,8 +75,14 @@ final class AppModel: ObservableObject {
     init(
         snapshotStore: SnapshotStore?,
         actionConfiguration: ActionNotificationConfiguration,
-        metricExclusions: MetricRepositoryExclusions = .load()
+        metricExclusions: MetricRepositoryExclusions = .load(),
+        tokenStore: KeychainTokenStore = KeychainTokenStore(),
+        makeAPI: @escaping @Sendable (String) -> GitHubAPI = { GitHubAPI(token: $0) },
+        sessionTiming: SessionTiming = .standard
     ) {
+        self.tokenStore = tokenStore
+        self.makeAPI = makeAPI
+        self.sessionTiming = sessionTiming
         self.snapshotStore = snapshotStore
         self.actionConfiguration = actionConfiguration
         self.metricExclusions = metricExclusions
@@ -235,34 +249,67 @@ final class AppModel: ObservableObject {
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
         guard !hasStarted else { return }
         hasStarted = true
+        let task = Task { await self.restoreSession() }
+        sessionRestoreTask = task
+        await task.value
+    }
+
+    /// Connects with the saved token and keeps retrying while the failure can
+    /// clear on its own (see `SessionRestoreDisposition`). The token is only
+    /// replaced by a new sign-in or removed by Sign out; a sustained rejection
+    /// (see `AuthorizationRejectionStreak`) or a failure that retrying cannot
+    /// fix shows the sign-in screen with the reason.
+    func restoreSession() async {
+        var attempt = 0
         while !Task.isCancelled {
-            var storedToken: String?
+            var delay = sessionTiming.reconnectDelay(afterAttempt: attempt)
             do {
-                guard let token = try tokenStore.load() else { return }
-                storedToken = token
-                connectionState = .authorizing
-                try await connect(token: token)
-                return
-            } catch GitHubAPIError.unauthorized {
-                if let storedToken { _ = try? tokenStore.delete(ifMatching: storedToken) }
-                errorMessage = GitHubAPIError.unauthorized.localizedDescription
-                connectionState = .disconnected
-                return
-            } catch let error as KeychainTokenError where error.isTemporarilyUnavailable {
-                errorMessage = "The macOS Keychain is temporarily unavailable. Retrying after wake or unlock."
-                connectionState = .disconnected
-                do {
-                    try await Task.sleep(for: .seconds(15))
-                } catch {
+                guard let token = try tokenStore.load() else {
+                    connectionState = .disconnected
                     return
                 }
-                guard connectionState == .disconnected, signInTask == nil else { return }
+                connectionState = .connecting
+                try await connect(token: token)
+                return
             } catch {
-                errorMessage = error.localizedDescription
-                connectionState = .disconnected
+                guard !Task.isCancelled else { return }
+                switch SessionRestoreDisposition.resolve(error) {
+                case .rejected:
+                    guard !recordAuthorizationRejection() else { return }
+                    errorMessage = "GitHub didn’t accept the saved sign-in. Checking again…"
+                case let .retry(notBefore):
+                    errorMessage = Self.reconnectMessage(for: error)
+                    if let notBefore {
+                        delay = max(delay, .seconds(max(0, notBefore.timeIntervalSinceNow)))
+                    }
+                case .stop:
+                    errorMessage = error.localizedDescription
+                    connectionState = .disconnected
+                    return
+                }
+            }
+            do {
+                try await Task.sleep(for: delay)
+            } catch {
                 return
             }
+            attempt += 1
         }
+    }
+
+    nonisolated static func reconnectMessage(for error: Error) -> String {
+        if let keychainError = error as? KeychainTokenError, keychainError.isTemporarilyUnavailable {
+            return "Waiting for the macOS Keychain to unlock."
+        }
+        if let urlError = error as? URLError {
+            switch urlError.code {
+            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff:
+                return "Waiting for a network connection."
+            default:
+                return "Can’t reach GitHub. Retrying automatically."
+            }
+        }
+        return "\(error.localizedDescription) Retrying automatically."
     }
 
     func signIn() {
@@ -270,6 +317,9 @@ final class AppModel: ObservableObject {
         let attemptID = UUID()
         signInAttemptID = attemptID
         errorMessage = nil
+        sessionRestoreTask?.cancel()
+        sessionRestoreTask = nil
+        authorizationRejections.reset()
         connectionState = .authorizing
         signInTask = Task { [weak self] in
             guard let self else { return }
@@ -293,7 +343,8 @@ final class AppModel: ObservableObject {
                 savedToken = token
                 try Task.checkCancellation()
                 self.deviceAuthorization = nil
-                try await self.connect(token: token)
+                await self.restoreSession()
+                try Task.checkCancellation()
             } catch is CancellationError {
                 if let savedToken { _ = try? self.tokenStore.delete(ifMatching: savedToken) }
                 if self.signInAttemptID == attemptID { self.connectionState = .disconnected }
@@ -309,6 +360,8 @@ final class AppModel: ObservableObject {
 
     func cancelSignIn() {
         signInTask?.cancel()
+        sessionRestoreTask?.cancel()
+        sessionRestoreTask = nil
         refreshLoop?.cancel()
         actionRefreshLoop?.cancel()
         signInTask = nil
@@ -352,6 +405,7 @@ final class AppModel: ObservableObject {
             try snapshotStore?.save(merged)
             snapshot = merged
             isDataVerified = true
+            authorizationRejections.reset()
             if !isFullRefreshRequested { restoringRepositories = [] }
             await reconcileSystemNotifications(previous: currentBeforePublish, sessionID: sessionID)
             showTransient(result.transientEvents)
@@ -588,6 +642,9 @@ final class AppModel: ObservableObject {
 
     func signOut() {
         signInTask?.cancel()
+        sessionRestoreTask?.cancel()
+        sessionRestoreTask = nil
+        authorizationRejections.reset()
         refreshLoop?.cancel()
         actionRefreshLoop?.cancel()
         transientResetTask?.cancel()
@@ -617,9 +674,11 @@ final class AppModel: ObservableObject {
     }
 
     private func connect(token: String) async throws {
-        let api = GitHubAPI(token: token)
+        let api = makeAPI(token)
         let viewer = try await api.viewer()
         try Task.checkCancellation()
+        authorizationRejections.reset()
+        errorMessage = nil
         let cached = try snapshotStore?.load(accountID: viewer.id)
         try Task.checkCancellation()
         let sessionID = UUID()
@@ -684,7 +743,7 @@ final class AppModel: ObservableObject {
                 try? await Task.sleep(for: .seconds(15))
                 guard !Task.isCancelled else { return }
                 tick += 1
-                switch Self.scheduledRefresh(atTick: tick) {
+                switch Self.scheduledRefresh(atTick: tick, hasSnapshot: self?.snapshot != nil) {
                 case .full: await self?.refresh()
                 case .assignedOnly: await self?.refreshAssignedOnly()
                 }
@@ -707,7 +766,10 @@ final class AppModel: ObservableObject {
         notificationAuthorizationStatus = await notifications.authorizationStatusDescription()
     }
 
-    nonisolated static func scheduledRefresh(atTick tick: Int) -> ScheduledRefresh {
+    /// Until the first snapshot exists only a full refresh can make progress,
+    /// so it retries every tick instead of waiting for the five-minute cycle.
+    nonisolated static func scheduledRefresh(atTick tick: Int, hasSnapshot: Bool) -> ScheduledRefresh {
+        guard hasSnapshot else { return .full }
         guard tick > 0 else { return .assignedOnly }
         return tick.isMultiple(of: 20) ? .full : .assignedOnly
     }
@@ -734,6 +796,7 @@ final class AppModel: ObservableObject {
             try snapshotStore?.save(merged)
             self.snapshot = merged
             isDataVerified = true
+            authorizationRejections.reset()
             errorMessage = merged.metadata.lastError
             await reconcileSystemNotifications(previous: currentBeforePublish, sessionID: sessionID)
             showTransient(result.transientEvents)
@@ -774,6 +837,7 @@ final class AppModel: ObservableObject {
             try snapshotStore?.save(merged)
             snapshot = merged
             isDataVerified = true
+            authorizationRejections.reset()
             await reconcileSystemNotifications(previous: currentBeforePublish, sessionID: sessionID)
         } catch {
             handleSyncFailure(error, sessionID: sessionID)
@@ -929,25 +993,44 @@ final class AppModel: ObservableObject {
 
     private func handleSyncFailure(_ error: Error, sessionID: UUID) {
         guard activeSessionID == sessionID else { return }
-        errorMessage = error.localizedDescription
+        let isRejection = Self.shouldDisconnect(after: error)
+        if isRejection {
+            if recordAuthorizationRejection() { return }
+            // A single rejection is tolerated silently; say so once it repeats.
+            guard authorizationRejections.count > 1 else { return }
+        }
+        let message = isRejection
+            ? "GitHub rejected Codepulse’s sign-in. Retrying before asking you to sign in again."
+            : error.localizedDescription
+        errorMessage = message
         if var cached = snapshot {
-            cached.metadata.lastError = error.localizedDescription
+            cached.metadata.lastError = message
             snapshot = cached
         }
-        guard Self.shouldDisconnect(after: error) else { return }
+    }
 
+    /// Records a GitHub rejection of the saved token. Returns true, after
+    /// ending the session, once the rejection streak confirms the sign-in is
+    /// no longer valid. The token stays in the Keychain so a transient GitHub
+    /// problem can never cost the user their sign-in; the next sign-in
+    /// replaces it and Sign out removes it.
+    private func recordAuthorizationRejection() -> Bool {
+        guard authorizationRejections.recordRejection(
+            at: SuspendingClock().now,
+            timing: sessionTiming
+        ) else { return false }
         refreshLoop?.cancel()
         actionRefreshLoop?.cancel()
         refreshLoop = nil
         actionRefreshLoop = nil
         activeSessionID = nil
+        activeSyncID = nil
         activeActionSyncID = nil
+        isSyncing = false
         coordinator = nil
+        authorizationRejections.reset()
+        errorMessage = Self.signInAgainMessage
         connectionState = .disconnected
-        do {
-            try tokenStore.delete()
-        } catch {
-            errorMessage = "GitHub authorization expired, and its cached credential could not be removed: \(error.localizedDescription)"
-        }
+        return true
     }
 }

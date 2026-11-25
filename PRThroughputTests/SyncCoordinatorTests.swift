@@ -8,10 +8,15 @@ final class SyncCoordinatorTests: XCTestCase {
     }
 
     func testRefreshCadenceRunsAssignedEveryFifteenSecondsAndFullEveryFiveMinutes() {
-        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 1), .assignedOnly)
-        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 19), .assignedOnly)
-        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 20), .full)
-        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 40), .full)
+        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 1, hasSnapshot: true), .assignedOnly)
+        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 19, hasSnapshot: true), .assignedOnly)
+        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 20, hasSnapshot: true), .full)
+        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 40, hasSnapshot: true), .full)
+    }
+
+    func testInitialSyncRetriesFullRefreshEveryTickUntilASnapshotExists() {
+        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 1, hasSnapshot: false), .full)
+        XCTAssertEqual(AppModel.scheduledRefresh(atTick: 7, hasSnapshot: false), .full)
     }
 
     func testOnlyUnauthorizedFailuresInvalidateTheSession() {
