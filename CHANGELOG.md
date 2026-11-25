@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — 2026-11-24
+
+- Kept the GitHub sign-in across restarts. A single 401 from GitHub used to delete the saved token immediately, so the next login opened on the sign-in screen even when the same token had been accepted a second earlier. Codepulse now keeps syncing and asks you to sign in again only after GitHub has rejected the token at least three times over two minutes of awake time with no accepted request in between. The token is never deleted except by **Sign out**, and a new sign-in replaces it.
+- Startup now waits for the network, the Keychain, GitHub outages, and rate limits instead of falling back to the sign-in screen when the login item launches before Wi-Fi reconnects. The menu shows **Connecting to GitHub…** and retries automatically. Failures that retrying cannot fix show the sign-in screen with the reason, without deleting the token or repeating a Keychain prompt.
+- Initial sync retries every 15 seconds until the first snapshot exists, instead of waiting for the five-minute full-sync cycle.
+- A network failure right after signing in no longer discards the new token.
+
 ## 0.5.0 — 2026-11-05
 
 - Added a **Metric repositories** setting that leaves a repository's authored pull requests out of every metric, the activity chart, and the canonical export. `Keeper-Dating/review-ledgers` is excluded by default because review-loop rounds are recorded there as pull requests that merge within seconds, which had inflated merges and new work and pulled median merge time to zero.

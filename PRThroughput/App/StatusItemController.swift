@@ -17,6 +17,7 @@ enum StatusItemPresentation: Equatable {
         switch transient {
         case .approved: .approved
         case .merged: .merged
+        case nil where connectionState == .connecting: .syncing
         case nil where connectionState != .connected: .disconnected
         case nil where !hasVerifiedSnapshot: .syncing
         case nil: .assignedCount
@@ -186,6 +187,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     }
 
     private var accessibilitySummary: String {
+        if model.connectionState == .connecting { return "Connecting to GitHub" }
         guard model.connectionState == .connected else { return "GitHub disconnected" }
         guard model.snapshot != nil, model.isDataVerified else {
             return "Syncing GitHub history; verified totals are not yet available"
